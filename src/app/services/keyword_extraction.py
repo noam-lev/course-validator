@@ -1,12 +1,14 @@
 from openai import AsyncOpenAI
-import os
 import json
 from ..models.idea import KeywordAnalysis
 from pydantic import ValidationError
+from backend.core.config import settings
 
 class KeywordExtractionService:
     def __init__(self, max_retries: int = 3):
-        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        if not settings.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY is not set in environment or .env file")
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.max_retries = max_retries
         
     async def extract_keywords(self, user_input: str) -> KeywordAnalysis:
@@ -29,7 +31,7 @@ class KeywordExtractionService:
         for attempt in range(self.max_retries):
             try:
                 response = await self.client.chat.completions.create(
-                    model="gpt-4-turbo-preview",
+                    model=settings.OPENAI_DEFAULT_MODEL,  # Use the model from settings
                     response_format={ "type": "json" },
                     messages=[
                         {"role": "system", "content": "You are a course topic analyzer. Return only valid JSON with no additional text."},
@@ -57,4 +59,4 @@ class KeywordExtractionService:
         raise Exception(f"Failed to extract keywords after {self.max_retries} attempts. Last error: {last_error}")
 
 # Create a singleton instance
-keyword_service = KeywordExtractionService() 
+keyword_service = KeywordExtractionService()
