@@ -2,7 +2,8 @@ from openai import AsyncOpenAI
 import json
 from ..models.idea import KeywordAnalysis
 from pydantic import ValidationError
-from backend.core.config import settings
+from ...core.config import settings
+
 
 class KeywordExtractionService:
     def __init__(self, max_retries: int = 3):
@@ -32,7 +33,7 @@ class KeywordExtractionService:
             try:
                 response = await self.client.chat.completions.create(
                     model=settings.OPENAI_DEFAULT_MODEL,  # Use the model from settings
-                    response_format={ "type": "json" },
+                    response_format={ "type": "json_object" },
                     messages=[
                         {"role": "system", "content": "You are a course topic analyzer. Return only valid JSON with no additional text."},
                         {"role": "user", "content": prompt}
