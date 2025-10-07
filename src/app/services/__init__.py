@@ -1,0 +1,13 @@
+from .keyword_extraction import KeywordExtractionService, keyword_service
+from .google_trends import GoogleTrendsService, trends_service
+from .course_analyzer import CourseAnalyzer, get_course_analyzer
+
+__all__ = [
+    "KeywordExtractionService",
+    "keyword_service",
+    "GoogleTrendsService",
+    "trends_service",
+    "CourseAnalyzer",
+    "get_course_analyzer",
+]
+
