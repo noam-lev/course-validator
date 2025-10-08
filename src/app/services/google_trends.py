@@ -2,7 +2,6 @@ from pytrends.request import TrendReq
 import pandas as pd
 import time
 import warnings
-from typing import List
 from ..models.idea import KeywordAnalysis, TrendsAnalysis, TrendData
 import logging
 

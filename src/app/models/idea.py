@@ -25,8 +25,9 @@ class CourseInfo(BaseModel):
     levels: List[str]
 
 class MarketplaceAnalysis(BaseModel):
-    udemy: dict[str, CourseInfo]
+    marketplaces: dict[str, dict[str, CourseInfo]]  # {marketplace_name: {keyword: CourseInfo}}
     competition_score: int = Field(..., ge=0, le=100)
+    analyzed_marketplaces: List[str]  # List of marketplaces that were analyzed
 
 class CourseIdeaResponse(BaseModel):
     idea: str
