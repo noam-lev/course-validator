@@ -22,10 +22,16 @@ class KeywordExtractionService:
         {{
             "topic": "main topic",
             "subtopics": ["2-3 relevant subtopics"],
-            "keywords": ["5-7 search-optimized keywords/phrases"]
+            "keywords": ["5-7 search-optimized keywords for Google Trends/SEO"],
+            "job_search_terms": ["3-5 terms that appear in job descriptions for this skill"],
+            "job_titles": ["3-5 actual job titles that require this skill"]
         }}
         
-        Make keywords specific and search-friendly. Include variations people might search for.
+        Guidelines:
+        - keywords: What people search to LEARN this topic (e.g., "learn python", "python tutorial")
+        - job_search_terms: Technical terms/skills from job requirements (e.g., "Python", "React", "SQL")
+        - job_titles: Actual job positions that require this skill (e.g., "Data Analyst", "Frontend Developer")
+        
         IMPORTANT: Return ONLY the JSON object, no additional text or explanation."""
 
         last_error = None

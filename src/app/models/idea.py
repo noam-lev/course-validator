@@ -9,6 +9,8 @@ class KeywordAnalysis(BaseModel):
     topic: str
     subtopics: List[str]
     keywords: List[str]
+    job_search_terms: List[str]
+    job_titles: List[str]
 
 class TrendData(BaseModel):
     score: int = Field(..., ge=0, le=100)
@@ -29,6 +31,14 @@ class MarketplaceAnalysis(BaseModel):
     competition_score: int = Field(..., ge=0, le=100)
     analyzed_marketplaces: List[str]  # List of marketplaces that were analyzed
 
+class JobMarketData(BaseModel):
+    total_jobs_found: int
+    job_demand_score: int = Field(..., ge=0, le=100)
+    avg_salary: Optional[float] = None
+    top_job_titles: List[str]
+    required_skills: List[str]
+    growth_trend: str = Field(..., pattern="^(growing|stable|declining)$")
+
 class CourseIdeaResponse(BaseModel):
     idea: str
     demand_score: int = Field(..., ge=0, le=100)
@@ -36,6 +46,7 @@ class CourseIdeaResponse(BaseModel):
     good_idea_score: int = Field(..., ge=0, le=100)
     content_gap_hint: Optional[str] = None
     summary: str
+    job_market: Optional[JobMarketData] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
