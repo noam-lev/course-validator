@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: Optional[str] = None
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # Job Market API Settings
+    ADZUNA_APP_ID: Optional[str] = None
+    ADZUNA_API_KEY: Optional[str] = None
+    JOB_SEARCH_COUNTRY: str = "us"  # us, gb, de, au, etc.
+    MAX_JOBS_TO_ANALYZE: int = 100
 
 
     model_config = {

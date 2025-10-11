@@ -27,10 +27,28 @@ class KeywordExtractionService:
             "job_titles": ["3-5 actual job titles that require this skill"]
         }}
         
-        Guidelines:
-        - keywords: What people search to LEARN this topic (e.g., "learn python", "python tutorial")
-        - job_search_terms: Technical terms/skills from job requirements (e.g., "Python", "React", "SQL")
-        - job_titles: Actual job positions that require this skill (e.g., "Data Analyst", "Frontend Developer")
+        Guidelines and Examples:
+        
+        1. Keywords (what people search to LEARN):
+           - Technical: "learn python", "javascript tutorial", "data science basics"
+           - Education: "fun math games for kids", "teaching reading activities", "homeschool curriculum"
+           - Business: "start online business", "marketing strategy guide", "leadership skills"
+           - Creative: "learn digital painting", "photography basics", "video editing tutorial"
+        
+        2. Job Search Terms (professional terms from job requirements):
+           - Technical: "Python", "React", "machine learning", "AWS"
+           - Education: "curriculum development", "instructional design", "early childhood education"
+           - Business: "project management", "strategic planning", "team leadership"
+           - Creative: "content creation", "visual design", "video production"
+        
+        3. Job Titles (actual positions that would use these skills):
+           - Technical: "Software Engineer", "Data Scientist", "DevOps Engineer"
+           - Education: "Educational Consultant", "Curriculum Developer", "Learning Specialist"
+           - Business: "Business Coach", "Management Consultant", "Training Specialist"
+           - Creative: "Content Creator", "Digital Media Specialist", "Creative Director"
+        
+        Match your response to the course domain (technical, educational, business, creative, etc.).
+        Focus on professional, employable skills even for hobby/lifestyle topics.
         
         IMPORTANT: Return ONLY the JSON object, no additional text or explanation."""
 
