@@ -20,8 +20,8 @@ class ScoreCalculator:
                 "competition": 0.3
             },
             "life_skills": {
-                "trend": 0.6,
-                "job": 0.1,
+                "trend": 0.7,  # Increased from 0.6
+                "job": 0.0,   # Removed job market influence
                 "competition": 0.3
             },
             "educational": {

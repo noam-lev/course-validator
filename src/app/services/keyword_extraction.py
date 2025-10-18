@@ -33,10 +33,25 @@ class KeywordExtractionService:
         }}
         
         Course Types Explained:
-        1. professional: Focused on career advancement, job skills, certifications
-        2. personal: Hobby, creative pursuits, personal interests
-        3. life_skills: Self-improvement, personal finance, health, relationships
+        1. life_skills: Personal finance, investing, health, relationships, self-improvement
+           - Focus on practical life applications
+           - Skills everyone needs regardless of profession
+           - Often involves money, health, or personal growth
+           
+        2. professional: Career advancement, job skills, certifications
+           - Direct application in workplace
+           - Clear career path connection
+           - Industry-specific skills
+           
+        3. personal: Hobby, creative pursuits, personal interests
+           - Pure enjoyment or creativity
+           - No specific practical application needed
+           - Personal fulfillment focused
+           
         4. educational: Academic subjects, teaching methods, exam prep
+           - Traditional academic topics
+           - Formal education focus
+           - Structured learning paths
         
         Choose the most appropriate type based on:
         - Primary motivation (job vs personal growth vs hobby)

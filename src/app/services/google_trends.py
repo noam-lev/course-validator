@@ -184,15 +184,24 @@ class GoogleTrendsService:
         total_score = sum(data.score for data in trends_data.values())
         avg_score = total_score / len(trends_data)
         
-        # Apply bonus if majority of keywords are rising
+        # Calculate trend momentum
         rising_count = sum(1 for data in trends_data.values() if data.direction == "rising")
         falling_count = sum(1 for data in trends_data.values() if data.direction == "falling")
         
+        # More aggressive momentum bonus
         momentum_bonus = 0
         if rising_count > len(trends_data) / 2:
-            momentum_bonus = 5  # Bonus for rising trend momentum
+            # Strong rising trend bonus
+            momentum_bonus = 15  # Increased from 5
+            # Extra bonus if ALL keywords are rising
+            if rising_count == len(trends_data):
+                momentum_bonus += 10
         elif falling_count > len(trends_data) / 2:
-            momentum_bonus = -5  # Penalty for falling trend momentum
+            momentum_bonus = -10  # Increased penalty for falling trends
+        
+        # For high base scores, add additional bonus
+        if avg_score > 70:
+            momentum_bonus += 10  # Reward already high-scoring topics
         
         # Final score with momentum bonus, capped at 0-100
         final_score = max(0, min(100, int(avg_score + momentum_bonus)))

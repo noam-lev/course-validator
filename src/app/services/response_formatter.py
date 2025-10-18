@@ -155,18 +155,37 @@ class ResponseFormatter:
         try:                    
             logger.debug(f"Formatting content gap hint with: skills={skills}, rising_interests={rising_interests}, key_areas={key_areas}")
             
+            # Remove duplicates while preserving order
+            def deduplicate(items: list[str]) -> list[str]:
+                seen = set()
+                return [x for x in items if not (x.lower() in seen or seen.add(x.lower()))]
+            
+            # Clean and deduplicate lists
+            skills = deduplicate(skills)
+            rising_interests = deduplicate(rising_interests)
+            key_areas = deduplicate([area for area in key_areas 
+                                   if area.lower() not in [x.lower() for x in rising_interests]])
+            
             sections = []
             
             if skills:
-                sections.append(f"Most in-demand skills: {', '.join(skills)}")
+                sections.append(f"Market demand shows need for: {', '.join(skills)}")
+            
             if rising_interests:
-                sections.append(f"Rising interest detected in: {', '.join(rising_interests)}")
+                trend_text = "Growing interest in: " + ', '.join(
+                    f"{topic} (trending up)" for topic in rising_interests
+                )
+                sections.append(trend_text)
+            
             if key_areas:
-                sections.append(f"Key areas to cover: {', '.join(key_areas)}")
+                areas_text = "Recommended focus areas: " + ', '.join(
+                    f"{area} (essential)" for area in key_areas
+                )
+                sections.append(areas_text)
                 
             hint = " | ".join(sections)
             if hint:
-                hint += ". Consider emphasizing these aspects in your course."
+                hint += ". Make sure your course covers these high-demand topics."
                 
             logger.debug(f"Formatted content gap hint: '{hint}'")
             return hint
