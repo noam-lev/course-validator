@@ -48,13 +48,18 @@ class JobMarketService:
             logger.info("Skipping job market analysis - API not configured")
             return None
         
-        logger.info(f"Starting job market analysis for topic: {keywords.topic}")
-        logger.info(f"Job titles to search: {keywords.job_titles}")
-        logger.info(f"Job search terms: {keywords.job_search_terms}")
+        logger.info("\n" + "="*50)
+        logger.info("Starting Job Market Analysis")
+        logger.info("="*50)
+        logger.info(f"\nInput Data:")
+        logger.info(f"- Topic: {keywords.topic}")
+        logger.info(f"- Job titles to search: {keywords.job_titles}")
+        logger.info(f"- Job search terms: {keywords.job_search_terms}")
+        logger.info(f"- Country: {self.country}")
+        logger.info(f"- Max jobs: {self.max_jobs}")
         
         try:
             # Step 1: Search for jobs using job titles
-            logger.info("Step 1: Searching jobs by titles...")
             all_jobs = await self._search_all_jobs(keywords)
             
             if not all_jobs:
@@ -73,7 +78,6 @@ class JobMarketService:
                 logger.info("Filtering details:")
                 logger.info(f"- Total jobs before filter: {len(all_jobs)}")
                 logger.info(f"- Search terms used: {keywords.job_search_terms}")
-                logger.info("- Filter criteria: 2+ term matches OR 1 term + topic match")
                 return self._create_empty_result()
             
             # Step 3: Extract metrics from relevant jobs
@@ -108,14 +112,12 @@ class JobMarketService:
         """
         all_jobs = []
         seen_job_ids = set()
-        jobs_per_title = {}  # Track jobs found per title
         
         # Search by each job title (limit to top 3 to avoid too many API calls)
         for job_title in keywords.job_titles[:3]:
             try:
                 logger.info(f"Searching for jobs with title: {job_title}")
                 jobs = await self._search_jobs_by_query(job_title)
-                jobs_per_title[job_title] = len(jobs)
                 
                 # Deduplicate jobs
                 new_jobs = 0
@@ -133,7 +135,6 @@ class JobMarketService:
                 
             except Exception as e:
                 logger.warning(f"Failed to search jobs for '{job_title}': {str(e)}")
-                jobs_per_title[job_title] = 0
                 continue
         
         logger.info(f"Found {len(all_jobs)} total jobs before filtering")
@@ -165,10 +166,20 @@ class JobMarketService:
                         'sort_by': 'date',  # Get most recent jobs
                     }
                     
+                    logger.info(f"Making API request to: {url}")
+                    logger.info(f"Query params: app_id={params['app_id'][:4]}..., what={params['what']}, results_per_page={params['results_per_page']}")
+                    
                     response = await client.get(url, params=params)
+                    logger.info(f"API Response status: {response.status_code}")
+                    
+                    if response.status_code != 200:
+                        logger.error(f"API Error Response: {response.text}")
+                    
                     response.raise_for_status()
                     
                     data = response.json()
+                    logger.info(f"API Response data keys: {list(data.keys())}")
+                    
                     jobs = data.get('results', [])
                     
                     logger.info(f"Found {len(jobs)} jobs for query: '{query}'")
@@ -220,15 +231,31 @@ class JobMarketService:
         for term in search_terms_lower:
             logger.info(f"- {term}")
         
+        logger.info(f"Topic to match: {topic_lower}")
+        
+        # Log first job structure
+        if jobs:
+            first_job = jobs[0]
+            logger.info("Sample job structure:")
+            logger.info(f"- Keys available: {list(first_job.keys())}")
+            logger.info(f"- Title: {first_job.get('title')}")
+            logger.info(f"- Description length: {len(first_job.get('description', ''))}")
+        
         for job in jobs:
             title = job.get('title', '').lower()
             description = job.get('description', '').lower()
             
+            logger.debug(f"\nAnalyzing job: {title}")
+            logger.debug(f"Description preview: {description[:100]}...")
+            
             # Count how many search terms appear in title or description
-            term_matches = sum(
-                1 for term in search_terms_lower
+            matching_terms = [
+                term for term in search_terms_lower
                 if term in title or term in description
-            )
+            ]
+            term_matches = len(matching_terms)
+            
+            logger.debug(f"Matching terms ({term_matches}): {matching_terms}")
             
             # Track match distribution
             if term_matches >= 4:
@@ -238,16 +265,28 @@ class JobMarketService:
             
             # Also check if topic appears
             topic_match = topic_lower in title or topic_lower in description
+            if topic_match:
+                logger.debug("Topic match found!")
             
             # Keep job if it matches at least 2 search terms, or 1 term + topic
             if term_matches >= 2 or (term_matches >= 1 and topic_match):
                 relevant_jobs.append(job)
-                if term_matches >= 2:
-                    logger.debug(f"Keeping job '{title}' with {term_matches} term matches")
-                else:
-                    logger.debug(f"Keeping job '{title}' with topic match + {term_matches} term match")
+                logger.info(f"✅ Keeping job: '{title}'")
+                logger.info(f"  - Term matches: {term_matches}")
+                logger.info(f"  - Topic match: {topic_match}")
+                logger.info(f"  - Matching terms: {matching_terms}")
+            else:
+                logger.debug(f"❌ Rejecting job: '{title}'")
+                logger.debug(f"  - Term matches: {term_matches}")
+                logger.debug(f"  - Topic match: {topic_match}")
         
-        logger.info(f"Filtered to {len(relevant_jobs)} relevant jobs from {len(jobs)} total")
+        logger.info("\nFiltering Summary:")
+        logger.info(f"- Total jobs processed: {len(jobs)}")
+        logger.info(f"- Relevant jobs found: {len(relevant_jobs)}")
+        logger.info("Term match distribution:")
+        for count, num in term_match_counts.items():
+            logger.info(f"  - {count} matches: {num} jobs")
+        
         return relevant_jobs
     
     def _extract_job_metrics(self, jobs: List[Dict[str, Any]], keywords: KeywordAnalysis) -> Dict[str, Any]:

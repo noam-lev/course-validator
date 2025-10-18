@@ -1,4 +1,14 @@
-from ..models.idea import CourseIdeaRequest, CourseIdeaResponse, KeywordAnalysis, TrendsAnalysis, JobMarketData
+from ..models.idea import (
+    CourseIdeaRequest, 
+    CourseIdeaResponse, 
+    KeywordAnalysis, 
+    TrendsAnalysis, 
+    JobMarketData,
+    ScoreExplanation,
+    CourseType
+)
+from .response_formatter import ResponseFormatter
+from .score_calculator import ScoreCalculator
 from .keyword_extraction import KeywordExtractionService
 from .google_trends import GoogleTrendsService
 from .job_market import JobMarketService
@@ -48,6 +58,7 @@ class CourseAnalyzer:
         
         # Step 5: Calculate overall viability score
         good_idea_score = self._calculate_viability_score(
+            keywords,
             trends_analysis.demand_score,
             competition_score,
             job_market_data
@@ -92,48 +103,29 @@ class CourseAnalyzer:
     
     def _calculate_viability_score(
         self, 
+        keywords: KeywordAnalysis,
         demand_score: int, 
         competition_score: int,
         job_market_data: Optional[JobMarketData]
     ) -> int:
         """
-        Calculate overall course idea viability score.
+        Calculate overall course idea viability score using the ScoreCalculator.
         
         Args:
+            keywords: Extracted keywords including course type
             demand_score: Market demand score from trends (0-100)
-            competition_score: Competition level score (0-100, higher = more competition)
+            competition_score: Competition level score (0-100)
             job_market_data: Job market analysis data (optional)
             
         Returns:
             Viability score (0-100)
-            
-        Formula:
-            If job market data available:
-                - 40% weight on trends demand
-                - 30% weight on job market demand
-                - 30% weight on competition gap (lower competition is better)
-            If no job market data:
-                - 60% weight on demand (higher is better)
-                - 40% weight on competition gap (lower competition is better)
         """
-        # Lower competition is better, so invert it
-        competition_gap = 100 - competition_score
-        
-        if job_market_data and job_market_data.total_jobs_found > 0:
-            # Include job market score in calculation
-            viability = int(
-                (demand_score * 0.4) + 
-                (job_market_data.job_demand_score * 0.3) +
-                (competition_gap * 0.3)
-            )
-        else:
-            # Fallback to original formula
-            viability = int(
-                (demand_score * 0.6) + 
-                (competition_gap * 0.4)
-            )
-        
-        return max(0, min(100, viability))
+        return ScoreCalculator.calculate_viability_score(
+            keywords.course_type,
+            demand_score,
+            competition_score,
+            job_market_data
+        )
     
     def _build_response(
         self,
@@ -175,16 +167,54 @@ class CourseAnalyzer:
         # Build summary
         summary = (
             f"Main topic: {keywords.topic}. "
-            f"Subtopics: {', '.join(keywords.subtopics)}."
-            f"trend_summary: {trend_summary}, job_summary: {job_summary}"
+            f"Subtopics: {', '.join(keywords.subtopics)}. "
+            f"trend_summary:{trend_summary}, job_summary:{job_summary}"
         )
+        
+        # Format scores and get explanations
+        formatter = ResponseFormatter()
+        formatted_demand_score = formatter.format_score(trends_analysis.demand_score)
+        formatted_competition_score = formatter.format_score(competition_score)
+        formatted_good_idea_score = formatter.format_score(good_idea_score)
+        
+        # Get score explanations
+        score_explanations = ScoreExplanation(
+            demand=formatter.get_score_explanation("demand", trends_analysis.demand_score),
+            competition=formatter.get_score_explanation("competition", competition_score),
+            good_idea=formatter.get_score_explanation("good_idea", good_idea_score)
+        )
+        
+        # Format content gap hint
+        if job_market_data and job_market_data.required_skills:
+            skills = job_market_data.required_skills[:3]
+        else:
+            skills = []
+            
+        rising_keywords = [
+            kw for kw, data in trends_analysis.trends.items()
+            if data.direction == "rising"
+        ][:3]
+        
+        formatted_content_gap = formatter.format_content_gap_hint(
+            skills=skills,
+            rising_interests=rising_keywords,
+            key_areas=keywords.keywords[:3]
+        )
+        
+        # Get score context based on course type
+        score_context = ScoreCalculator.get_score_context(keywords.course_type)
+        
+        # Add score context to summary
+        summary = f"{summary}\nScore Context: {score_context}"
         
         return CourseIdeaResponse(
             idea=user_input,
-            demand_score=trends_analysis.demand_score,
-            competition_score=competition_score,
-            good_idea_score=good_idea_score,
-            content_gap_hint=content_gap_hint,
+            course_type=keywords.course_type,
+            demand_score=formatted_demand_score,
+            competition_score=formatted_competition_score,
+            good_idea_score=formatted_good_idea_score,
+            score_explanations=score_explanations,
+            content_gap_hint=formatted_content_gap,
             summary=summary,
             job_market=job_market_data
         )

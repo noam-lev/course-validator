@@ -24,8 +24,25 @@ class KeywordExtractionService:
             "subtopics": ["2-3 relevant subtopics"],
             "keywords": ["5-7 search-optimized keywords for Google Trends/SEO"],
             "job_search_terms": ["3-5 terms that appear in job descriptions for this skill"],
-            "job_titles": ["3-5 actual job titles that require this skill"]
+            "job_titles": ["3-5 actual job titles that require this skill"],
+            "course_type": {{
+                "type": "one of: professional, personal, life_skills, educational",
+                "description": "explanation of why this type was chosen",
+                "focus_areas": ["3-4 key areas this type of course should focus on"]
+            }}
         }}
+        
+        Course Types Explained:
+        1. professional: Focused on career advancement, job skills, certifications
+        2. personal: Hobby, creative pursuits, personal interests
+        3. life_skills: Self-improvement, personal finance, health, relationships
+        4. educational: Academic subjects, teaching methods, exam prep
+        
+        Choose the most appropriate type based on:
+        - Primary motivation (job vs personal growth vs hobby)
+        - Target audience (professionals vs general public)
+        - Expected outcomes (career advancement vs personal enrichment)
+        - Application (workplace vs daily life vs leisure)
         
         Guidelines and Examples:
         

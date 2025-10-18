@@ -5,12 +5,18 @@ from datetime import datetime
 class CourseIdeaRequest(BaseModel):
     user_input: str = Field(..., description="The course idea input from the user")
 
+class CourseType(BaseModel):
+    type: str = Field(..., pattern="^(professional|personal|life_skills|educational)$")
+    description: str
+    focus_areas: List[str]
+
 class KeywordAnalysis(BaseModel):
     topic: str
     subtopics: List[str]
     keywords: List[str]
     job_search_terms: List[str]
     job_titles: List[str]
+    course_type: CourseType
 
 class TrendData(BaseModel):
     score: int = Field(..., ge=0, le=100)
@@ -39,11 +45,18 @@ class JobMarketData(BaseModel):
     required_skills: List[str]
     growth_trend: str = Field(..., pattern="^(growing|stable|declining)$")
 
+class ScoreExplanation(BaseModel):
+    demand: str
+    competition: str
+    good_idea: str
+
 class CourseIdeaResponse(BaseModel):
     idea: str
-    demand_score: int = Field(..., ge=0, le=100)
-    competition_score: int = Field(..., ge=0, le=100)
-    good_idea_score: int = Field(..., ge=0, le=100)
+    course_type: CourseType
+    demand_score: str
+    competition_score: str
+    good_idea_score: str
+    score_explanations: ScoreExplanation
     content_gap_hint: Optional[str] = None
     summary: str
     job_market: Optional[JobMarketData] = None
@@ -53,11 +66,16 @@ class CourseIdeaResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "idea": "Python course for data science beginners",
-                "demand_score": 70,
-                "competition_score": 65,
-                "good_idea_score": 72,
-                "content_gap_hint": "Most existing courses focus on Python basics, but few provide real-world projects for data science beginners.",
-                "summary": "This course idea has strong demand and moderate competition. You can stand out by adding project-based learning.",
+                "demand_score": "70% (0-100 scale)",
+                "competition_score": "65% (0-100 scale)",
+                "good_idea_score": "72% (0-100 scale)",
+                "score_explanations": {
+                    "demand": "High market demand",
+                    "competition": "Moderate competition",
+                    "good_idea": "Good potential"
+                },
+                "content_gap_hint": "Most in-demand skills: Python, SQL, pandas | Rising interest detected in: Data Science, Machine Learning | Key areas to cover: data analysis, visualization, statistics. Consider emphasizing these aspects in your course.",
+                "summary": "Main topic: Python for Data Science. Subtopics: Data Analysis, Machine Learning, Statistics. trend_summary: Market trend: rising (interest score: 81), job_summary: Jobs found: 150, avg salary: $95,000",
                 "created_at": "2025-09-25T00:00:00Z"
             }
         } 

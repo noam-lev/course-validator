@@ -16,10 +16,12 @@ class GoogleTrendsService:
         """Initialize Google Trends service with retry configuration."""
         self.max_retries = max_retries
         self.retry_delay = 2  # seconds between retries
-        
-    def _init_pytrends(self) -> TrendReq:
-        """Initialize pytrends client without built-in retries (we handle retries at service level)."""
-        return TrendReq(hl='en-US', tz=0, timeout=(10, 25))
+        # Create a single pytrends instance to reuse across requests
+        self.pytrends = TrendReq(
+            hl='en-US',
+            tz=0,
+            timeout=(10, 25)  # Keep it simple, let our own retry logic handle retries
+        )
     
     async def analyze_trends(self, keywords_analysis: KeywordAnalysis) -> TrendsAnalysis:
         """
@@ -47,8 +49,8 @@ class GoogleTrendsService:
                 if trend_info:
                     trends_data[term] = trend_info
                     successful_queries.append(term)
-                    # Small delay to avoid rate limiting
-                    time.sleep(0.5)
+                    # Longer delay to avoid rate limiting
+                    time.sleep(1.0)  # Increased from 0.5s to 1s
             except Exception as e:
                 logger.warning(f"Failed to get trend data for '{term}': {str(e)}")
                 continue
@@ -83,10 +85,8 @@ class GoogleTrendsService:
         
         for attempt in range(self.max_retries):
             try:
-                pytrends = self._init_pytrends()
-                
-                # Build payload for last 12 months, worldwide
-                pytrends.build_payload(
+                # Use existing pytrends instance
+                self.pytrends.build_payload(
                     kw_list=[keyword],
                     cat=0,
                     timeframe='today 12-m',
@@ -95,7 +95,7 @@ class GoogleTrendsService:
                 )
                 
                 # Get interest over time
-                interest_df = pytrends.interest_over_time()
+                interest_df = self.pytrends.interest_over_time()
                 
                 if interest_df.empty or keyword not in interest_df.columns:
                     logger.warning(f"No data available for keyword: {keyword}")
