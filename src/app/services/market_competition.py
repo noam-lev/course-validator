@@ -133,3 +133,102 @@ class BaseCourseScraper(ABC):
             analyzed_marketplaces=[self.platform_name],
             summary=summary
         )
+
+
+class UdemyScraper(BaseCourseScraper):
+    """
+    Udemy-specific implementation of course scraper.
+    Handles Udemy's specific HTML structure and data extraction.
+    """
+    def __init__(self):
+        super().__init__(
+            platform_name="udemy",
+            request_delay=3.0,  # Slightly longer delay for Udemy
+            max_retries=3,
+            retry_delay=5.0
+        )
+
+    def format_search_url(self, topic: str) -> str:
+        """Format Udemy search URL for given topic"""
+        # Clean the topic for URL (replace spaces with hyphens, remove special chars)
+        clean_topic = topic.lower().replace(" ", "-")
+        return f"https://www.udemy.com/topic/{clean_topic}/"
+
+    async def extract_course_info(self, page: Page) -> List[CourseInfo]:
+        """Extract course information from Udemy search results page"""
+        # Wait for course cards to load
+        await page.wait_for_selector("[data-purpose='course-card']", timeout=10000)
+        
+        # Extract course information using Playwright's evaluation
+        courses_data = await page.evaluate("""
+            () => {
+                const courses = [];
+                const courseCards = document.querySelectorAll("[data-purpose='course-card']");
+                
+                courseCards.forEach(card => {
+                    try {
+                        // Extract course title
+                        const titleElement = card.querySelector("[data-purpose='course-title-url']");
+                        const title = titleElement ? titleElement.innerText : "";
+                        const url = titleElement ? titleElement.href : "";
+                        
+                        // Extract price
+                        const priceElement = card.querySelector("[data-purpose='course-price-text']");
+                        const priceText = priceElement ? priceElement.innerText : "";
+                        const price = parseFloat(priceText.replace(/[^0-9.]/g, "")) || 0;
+                        
+                        // Extract rating
+                        const ratingElement = card.querySelector("[data-purpose='rating-number']");
+                        const rating = ratingElement ? parseFloat(ratingElement.innerText) : null;
+                        
+                        // Extract student count
+                        const studentsElement = card.querySelector("[data-purpose='enrollment']");
+                        const studentsText = studentsElement ? studentsElement.innerText : "";
+                        const studentCount = parseInt(studentsText.replace(/[^0-9]/g, "")) || null;
+                        
+                        // Extract instructor
+                        const instructorElement = card.querySelector("[data-purpose='instructor-name']");
+                        const instructor = instructorElement ? instructorElement.innerText : null;
+                        
+                        // Extract level
+                        const levelElement = card.querySelector("[data-purpose='course-level']");
+                        const level = levelElement ? levelElement.innerText : null;
+                        
+                        courses.push({
+                            title,
+                            url,
+                            price,
+                            rating,
+                            studentCount,
+                            instructor,
+                            level
+                        });
+                    } catch (error) {
+                        console.error("Error parsing course card:", error);
+                    }
+                });
+                
+                return courses;
+            }
+        """)
+
+        # Convert the JavaScript objects to CourseInfo models
+        return [
+            CourseInfo(
+                title=course["title"],
+                url=course["url"],
+                price=course["price"],
+                rating=course["rating"],
+                student_count=course["studentCount"],
+                instructor=course["instructor"],
+                level=course["level"],
+                platform=self.platform_name,
+                last_updated=datetime.utcnow()  # Use current time as we don't have last updated info
+            )
+            for course in courses_data
+            if course["title"] and course["url"]  # Only include courses with at least title and URL
+        ]
+
+
+# Create a singleton instance
+udemy_scraper = UdemyScraper()
