@@ -12,13 +12,14 @@ dependencies = [
     "pydantic_settings",
     "openai>=1.90.0",
     "python-dotenv",
-    "pytrends",  # For Google Trends analysis
-    "beautifulsoup4",  # For web scraping
-    "httpx",  # For async HTTP requests
-    "pytest",  # For testing
-    "pytest-asyncio",  # For async tests
-    "mypy",  # For type checking
-    "ruff",  # For linting
+    "pytrends", # For Google Trends analysis
+    "beautifulsoup4", # For web scraping
+    "httpx", # For async HTTP requests
+    "pytest", # For testing
+    "pytest-asyncio", # For async tests
+    "mypy", # For type checking
+    "ruff", # For linting
+    "playwright>=1.55.0",
 ]
 
 [build-system]

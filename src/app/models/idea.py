@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import datetime
 
 class CourseIdeaRequest(BaseModel):
@@ -27,15 +27,21 @@ class TrendsAnalysis(BaseModel):
     demand_score: int = Field(..., ge=0, le=100)
 
 class CourseInfo(BaseModel):
-    courses_found: int
-    avg_price: float
-    avg_rating: float
-    levels: List[str]
+    title: str
+    price: float
+    student_count: Optional[int] = None
+    rating: Optional[float] = None
+    url: str
+    platform: str
+    instructor: Optional[str] = None
+    last_updated: Optional[datetime] = None
+    level: Optional[str] = None
 
 class MarketplaceAnalysis(BaseModel):
-    marketplaces: dict[str, dict[str, CourseInfo]]  # {marketplace_name: {keyword: CourseInfo}}
+    marketplaces: dict[str, dict[str, List[CourseInfo]]]  # {marketplace_name: {keyword: [CourseInfo]}}
     competition_score: int = Field(..., ge=0, le=100)
     analyzed_marketplaces: List[str]  # List of marketplaces that were analyzed
+    summary: dict[str, Any] = Field(default_factory=dict)  # Aggregated stats per marketplace
 
 class JobMarketData(BaseModel):
     total_jobs_found: int
