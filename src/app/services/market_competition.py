@@ -1,234 +1,193 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from playwright.async_api import async_playwright, Browser, Page
+from typing import List, Dict, Optional, Tuple
 import asyncio
 from datetime import datetime
 import logging
+
 from ..models.idea import CourseInfo, MarketplaceAnalysis
+
 
 logger = logging.getLogger(__name__)
 
-class BaseCourseScraperError(Exception):
-    """Base exception for course scraper errors"""
+
+class MarketCompetitionError(Exception):
+    """Raised when marketplace analysis cannot be completed."""
     pass
 
-class RateLimitError(BaseCourseScraperError):
-    """Raised when rate limit is hit"""
-    pass
 
-class ScraperInitError(BaseCourseScraperError):
-    """Raised when scraper fails to initialize"""
-    pass
-
-class BaseCourseScraper(ABC):
+class CourseMarketplaceScraper(ABC):
     """
-    Abstract base class for course marketplace scrapers.
-    Provides common functionality for scraping course data from different platforms.
+    Minimal async interface for a course marketplace scraper.
+    Concrete implementations should be safe to call concurrently.
     """
-    def __init__(self, 
-                 platform_name: str,
-                 request_delay: float = 2.0,
-                 max_retries: int = 3,
-                 retry_delay: float = 5.0):
-        self.platform_name = platform_name
-        self.request_delay = request_delay
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
-        self._browser: Optional[Browser] = None
-        self._last_request_time: Optional[float] = None
 
-    async def __aenter__(self):
-        """Set up browser when entering context"""
-        try:
-            playwright = await async_playwright().start()
-            self._browser = await playwright.chromium.launch(headless=True)
-            return self
-        except Exception as e:
-            raise ScraperInitError(f"Failed to initialize browser: {str(e)}")
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Clean up browser when exiting context"""
-        if self._browser:
-            await self._browser.close()
+    @property
+    @abstractmethod
+    def platform_name(self) -> str:
+        """Human-readable, stable platform identifier, e.g. "mock", "udemy"."""
+        raise NotImplementedError
 
     @abstractmethod
-    def format_search_url(self, topic: str) -> str:
-        """Format the search URL for a given topic"""
-        pass
-
-    @abstractmethod
-    async def extract_course_info(self, page: Page) -> List[CourseInfo]:
-        """Extract course information from a search results page"""
-        pass
-
-    async def _wait_for_rate_limit(self):
-        """Implement basic rate limiting"""
-        if self._last_request_time is not None:
-            elapsed = asyncio.get_event_loop().time() - self._last_request_time
-            if elapsed < self.request_delay:
-                await asyncio.sleep(self.request_delay - elapsed)
-        self._last_request_time = asyncio.get_event_loop().time()
-
-    async def get_courses_for_topic(self, topic: str) -> List[CourseInfo]:
+    async def fetch_courses(self, topic: str) -> List[CourseInfo]:
         """
-        Get course information for a given topic.
-        Implements retry logic and rate limiting.
+        Fetch a list of courses for a topic.
+        Implementations should handle their own internal retries/timeouts as needed.
         """
-        if not self._browser:
-            raise ScraperInitError("Browser not initialized. Use context manager.")
+        raise NotImplementedError
 
-        url = self.format_search_url(topic)
-        for attempt in range(self.max_retries):
-            try:
-                await self._wait_for_rate_limit()
-                
-                page = await self._browser.new_page()
-                try:
-                    await page.goto(url)
-                    courses = await self.extract_course_info(page)
-                    return courses
-                finally:
-                    await page.close()
-                    
-            except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
-                if attempt < self.max_retries - 1:
-                    await asyncio.sleep(self.retry_delay * (attempt + 1))
-                else:
-                    raise BaseCourseScraperError(f"Failed to scrape {url} after {self.max_retries} attempts: {str(e)}")
+
+class MockMarketplaceScraper(CourseMarketplaceScraper):
+    """
+    Safe mock scraper for smoke tests and incremental development.
+    Simulates I/O and returns deterministic data.
+    """
+
+    def __init__(self, latency_ms: int = 150):
+        self._platform_name = "mock"
+        self.latency_ms = latency_ms
+
+    @property
+    def platform_name(self) -> str:
+        return self._platform_name
+
+    async def fetch_courses(self, topic: str) -> List[CourseInfo]:
+        # Simulate network latency
+        await asyncio.sleep(self.latency_ms / 1000)
+
+        now = datetime.utcnow()
+        # Deterministic, minimal set of courses for smoke testing
+        return [
+            CourseInfo(
+                title=f"{topic.title()} Basics",
+                url=f"https://example.com/{topic}/basics",
+                price=19.99,
+                rating=4.5,
+                student_count=1200,
+                platform=self.platform_name,
+                instructor="Jane Doe",
+                last_updated=now,
+                level="Beginner",
+            ),
+            CourseInfo(
+                title=f"Advanced {topic.title()}",
+                url=f"https://example.com/{topic}/advanced",
+                price=49.0,
+                rating=4.7,
+                student_count=800,
+                platform=self.platform_name,
+                instructor="John Smith",
+                last_updated=now,
+                level="Advanced",
+            ),
+        ]
+
+
+class MarketCompetitionService:
+    """
+    Orchestrates concurrent marketplace scraping across topics.
+    Start with a mock-only configuration; add real scrapers as they are validated.
+    """
+
+    def __init__(
+        self,
+        scrapers: List[CourseMarketplaceScraper],
+        max_concurrency: int = 5,
+    ):
+        if not scrapers:
+            raise ValueError("At least one scraper must be provided")
+        if max_concurrency < 1:
+            raise ValueError("max_concurrency must be >= 1")
+
+        self.scrapers = scrapers
+        self.max_concurrency = max_concurrency
 
     async def analyze_market(self, topics: List[str]) -> MarketplaceAnalysis:
         """
-        Analyze market competition for given topics.
-        Returns MarketplaceAnalysis with course data and competition metrics.
+        Analyze market competition across configured scrapers for the provided topics.
+        Returns a MarketplaceAnalysis with aggregate counts and a simple competition score.
         """
-        all_courses: Dict[str, List[CourseInfo]] = {}
-        
-        for topic in topics:
-            try:
-                courses = await self.get_courses_for_topic(topic)
-                all_courses[topic] = courses
-                logger.info(f"Found {len(courses)} courses for topic: {topic}")
-            except BaseCourseScraperError as e:
-                logger.error(f"Failed to get courses for topic {topic}: {str(e)}")
-                all_courses[topic] = []
+        if not topics:
+            return MarketplaceAnalysis(
+                marketplaces={},
+                competition_score=0,
+                analyzed_marketplaces=[s.platform_name for s in self.scrapers],
+                summary={"total_courses": 0, "avg_courses_per_topic": 0.0, "topics_analyzed": 0},
+            )
 
-        # Calculate basic competition metrics
-        total_courses = sum(len(courses) for courses in all_courses.values())
-        avg_courses_per_topic = total_courses / len(topics) if topics else 0
-        
-        # Simple competition score calculation
-        # Can be made more sophisticated based on price, ratings, etc.
-        competition_score = min(int((avg_courses_per_topic / 10) * 100), 100)
+        semaphore = asyncio.Semaphore(self.max_concurrency)
+
+        async def run_scrape(
+            scraper: CourseMarketplaceScraper, topic: str
+        ) -> Tuple[str, str, List[CourseInfo]]:
+            # Concurrency guard to avoid overwhelming any single runtime
+            async with semaphore:
+                try:
+                    courses = await scraper.fetch_courses(topic)
+                    return scraper.platform_name, topic, courses
+                except Exception as e:
+                    logger.warning(
+                        f"Scrape failed for platform={scraper.platform_name}, topic={topic}: {str(e)}"
+                    )
+                    return scraper.platform_name, topic, []
+
+        tasks: List[asyncio.Task] = []
+        for scraper in self.scrapers:
+            for topic in topics:
+                tasks.append(asyncio.create_task(run_scrape(scraper, topic)))
+
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+
+        # Build marketplaces structure: {platform: {topic: [CourseInfo]}}
+        marketplaces: Dict[str, Dict[str, List[CourseInfo]]] = {}
+        for platform_name, topic, courses in results:
+            if platform_name not in marketplaces:
+                marketplaces[platform_name] = {}
+            marketplaces[platform_name][topic] = courses
+
+        # Compute aggregate metrics
+        total_courses = sum(len(courses) for platform in marketplaces.values() for courses in platform.values())
+        num_topics = len(topics)
+        avg_courses_per_topic = (total_courses / num_topics) if num_topics else 0.0
+
+        competition_score = self._compute_competition_score(avg_courses_per_topic)
 
         summary = {
             "total_courses": total_courses,
             "avg_courses_per_topic": avg_courses_per_topic,
-            "topics_analyzed": len(topics)
+            "topics_analyzed": num_topics,
         }
 
         return MarketplaceAnalysis(
-            marketplaces={self.platform_name: all_courses},
+            marketplaces=marketplaces,
             competition_score=competition_score,
-            analyzed_marketplaces=[self.platform_name],
-            summary=summary
+            analyzed_marketplaces=[s.platform_name for s in self.scrapers],
+            summary=summary,
         )
 
-
-class UdemyScraper(BaseCourseScraper):
-    """
-    Udemy-specific implementation of course scraper.
-    Handles Udemy's specific HTML structure and data extraction.
-    """
-    def __init__(self):
-        super().__init__(
-            platform_name="udemy",
-            request_delay=3.0,  # Slightly longer delay for Udemy
-            max_retries=3,
-            retry_delay=5.0
-        )
-
-    def format_search_url(self, topic: str) -> str:
-        """Format Udemy search URL for given topic"""
-        # Clean the topic for URL (replace spaces with hyphens, remove special chars)
-        clean_topic = topic.lower().replace(" ", "-")
-        return f"https://www.udemy.com/topic/{clean_topic}/"
-
-    async def extract_course_info(self, page: Page) -> List[CourseInfo]:
-        """Extract course information from Udemy search results page"""
-        # Wait for course cards to load
-        await page.wait_for_selector("[data-purpose='course-card']", timeout=10000)
-        
-        # Extract course information using Playwright's evaluation
-        courses_data = await page.evaluate("""
-            () => {
-                const courses = [];
-                const courseCards = document.querySelectorAll("[data-purpose='course-card']");
-                
-                courseCards.forEach(card => {
-                    try {
-                        // Extract course title
-                        const titleElement = card.querySelector("[data-purpose='course-title-url']");
-                        const title = titleElement ? titleElement.innerText : "";
-                        const url = titleElement ? titleElement.href : "";
-                        
-                        // Extract price
-                        const priceElement = card.querySelector("[data-purpose='course-price-text']");
-                        const priceText = priceElement ? priceElement.innerText : "";
-                        const price = parseFloat(priceText.replace(/[^0-9.]/g, "")) || 0;
-                        
-                        // Extract rating
-                        const ratingElement = card.querySelector("[data-purpose='rating-number']");
-                        const rating = ratingElement ? parseFloat(ratingElement.innerText) : null;
-                        
-                        // Extract student count
-                        const studentsElement = card.querySelector("[data-purpose='enrollment']");
-                        const studentsText = studentsElement ? studentsElement.innerText : "";
-                        const studentCount = parseInt(studentsText.replace(/[^0-9]/g, "")) || null;
-                        
-                        // Extract instructor
-                        const instructorElement = card.querySelector("[data-purpose='instructor-name']");
-                        const instructor = instructorElement ? instructorElement.innerText : null;
-                        
-                        // Extract level
-                        const levelElement = card.querySelector("[data-purpose='course-level']");
-                        const level = levelElement ? levelElement.innerText : null;
-                        
-                        courses.push({
-                            title,
-                            url,
-                            price,
-                            rating,
-                            studentCount,
-                            instructor,
-                            level
-                        });
-                    } catch (error) {
-                        console.error("Error parsing course card:", error);
-                    }
-                });
-                
-                return courses;
-            }
-        """)
-
-        # Convert the JavaScript objects to CourseInfo models
-        return [
-            CourseInfo(
-                title=course["title"],
-                url=course["url"],
-                price=course["price"],
-                rating=course["rating"],
-                student_count=course["studentCount"],
-                instructor=course["instructor"],
-                level=course["level"],
-                platform=self.platform_name,
-                last_updated=datetime.utcnow()  # Use current time as we don't have last updated info
-            )
-            for course in courses_data
-            if course["title"] and course["url"]  # Only include courses with at least title and URL
-        ]
+    def _compute_competition_score(self, avg_courses_per_topic: float) -> int:
+        """
+        Simple baseline mapping: normalize avg courses per topic into 0-100.
+        Tunable as we add richer signals (price, rating, enrollments, recency).
+        """
+        # Heuristic: 10 courses per topic ~ 100 competition
+        normalized = min(max(avg_courses_per_topic / 10.0, 0.0), 1.0)
+        return int(round(normalized * 100))
 
 
-# Create a singleton instance
-udemy_scraper = UdemyScraper()
+# Default singleton configured with a mock scraper for incremental testing
+market_competition_service = MarketCompetitionService(
+    scrapers=[MockMarketplaceScraper()],
+    max_concurrency=5,
+)
+
+
+__all__ = [
+    "CourseMarketplaceScraper",
+    "MockMarketplaceScraper",
+    "MarketCompetitionService",
+    "market_competition_service",
+]
+
+

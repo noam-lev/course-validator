@@ -12,6 +12,7 @@ from .score_calculator import ScoreCalculator
 from .keyword_extraction import KeywordExtractionService
 from .google_trends import GoogleTrendsService
 from .job_market import JobMarketService
+from .market_competition import market_competition_service
 from typing import Optional
 import logging
 
@@ -91,15 +92,33 @@ class CourseAnalyzer:
     
     async def _analyze_competition(self, keywords: KeywordAnalysis) -> int:
         """
-        Analyze marketplace competition.
-        TODO: Implement marketplace analysis service
+        Analyze marketplace competition using the market competition service.
+        
+        Args:
+            keywords: KeywordAnalysis with topics and keywords to search
         
         Returns:
             Competition score (0-100)
         """
-        # Placeholder until marketplace analysis is implemented
-        logger.info("Using placeholder competition score")
-        return 65
+        logger.info(f"Analyzing market competition for topic: {keywords.topic}")
+        
+        # Build list of topics to search (main topic + top keywords)
+        topics_to_search = [keywords.topic] + keywords.keywords[:2]
+        
+        try:
+            # Call the market competition service
+            analysis = await market_competition_service.analyze_market(topics_to_search)
+            
+            logger.info(f"Market analysis complete: {len(analysis.marketplaces)} marketplace(s), "
+                       f"{analysis.summary.get('total_courses', 0)} courses found, "
+                       f"competition score: {analysis.competition_score}")
+            
+            return analysis.competition_score
+            
+        except Exception as e:
+            logger.error(f"Market competition analysis failed: {str(e)}")
+            # Fallback to neutral score if analysis fails
+            return 65
     
     def _calculate_viability_score(
         self, 
