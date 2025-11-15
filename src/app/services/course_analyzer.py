@@ -177,48 +177,66 @@ class CourseAnalyzer:
             list(trends_analysis.trends.values())[0] if trends_analysis.trends else None
         )
         
-        # Build trend summary
-        trend_summary = ""
+        # Build summary as a natural narrative
+        summary_parts = []
+        
+        # Topic introduction
+        summary_parts.append(f"Course topic: {keywords.topic.title()}")
+        if keywords.subtopics:
+            summary_parts.append(f"Key areas: {', '.join(keywords.subtopics)}")
+        
+        # Market demand insights
         if main_topic_trend:
-            trend_summary = f" Market trend: {main_topic_trend.direction} (interest score: {main_topic_trend.score})"
+            trend_desc = "rising" if main_topic_trend.direction == "rising" else "stable" if main_topic_trend.direction == "steady" else "declining"
+            summary_parts.append(f"Market interest is {trend_desc} (score: {main_topic_trend.score}/100)")
         
-        # Build job market summary
-        job_summary = ""
+        # Job market insights (only if available)
         if job_market_data and job_market_data.total_jobs_found > 0:
-            job_summary = f" Jobs found: {job_market_data.total_jobs_found}"
+            job_parts = [f"{job_market_data.total_jobs_found} relevant job openings"]
             if job_market_data.avg_salary:
-                job_summary += f", avg salary: ${job_market_data.avg_salary:,.0f}"
+                job_parts.append(f"avg salary ${job_market_data.avg_salary:,.0f}")
+            summary_parts.append(" | ".join(job_parts))
         
-        # Build YouTube summary with actionable insights
-        youtube_summary = ""
+        # YouTube competition insights
         if youtube_analysis and youtube_analysis.total_videos_found > 0:
-            parts = []
+            youtube_parts = []
             
-            # Engagement level indicator
+            # Engagement level
             if youtube_analysis.engagement_score >= 80:
-                parts.append("Very high engagement")
+                youtube_parts.append("Very high demand")
             elif youtube_analysis.engagement_score >= 60:
-                parts.append("High engagement")
+                youtube_parts.append("High demand")
             elif youtube_analysis.engagement_score >= 40:
-                parts.append("Moderate engagement")
+                youtube_parts.append("Moderate demand")
             else:
-                parts.append("Low engagement")
+                youtube_parts.append("Low demand")
             
-            # Average views with context
+            # Views context
             if youtube_analysis.avg_views:
                 if youtube_analysis.avg_views >= 1_000_000:
-                    parts.append(f"{youtube_analysis.avg_views:,.0f} avg views (very popular)")
-                elif youtube_analysis.avg_views >= 100_000:
-                    parts.append(f"{youtube_analysis.avg_views:,.0f} avg views")
+                    youtube_parts.append(f"{youtube_analysis.avg_views:,.0f} avg views per video")
                 else:
-                    parts.append(f"{youtube_analysis.avg_views:,.0f} avg views")
+                    youtube_parts.append(f"{youtube_analysis.avg_views:,.0f} avg views")
             
-            # Top channels (competition indicator)
+            # Top creators (clean names)
             if youtube_analysis.top_channels:
-                channel_list = ', '.join(youtube_analysis.top_channels[:3])
-                parts.append(f"top creators: {channel_list}")
+                # Clean channel names (remove redundant parts in parentheses)
+                clean_channels = []
+                for channel in youtube_analysis.top_channels[:3]:
+                    # Remove redundant parenthetical info like "Channel (Channel)"
+                    if "(" in channel and ")" in channel:
+                        before_paren = channel.split("(")[0].strip()
+                        in_paren = channel.split("(")[1].split(")")[0].strip()
+                        if before_paren == in_paren:
+                            clean_channels.append(before_paren)
+                        else:
+                            clean_channels.append(channel)
+                    else:
+                        clean_channels.append(channel)
+                youtube_parts.append(f"Top creators: {', '.join(clean_channels)}")
             
-            youtube_summary = " YouTube: " + ", ".join(parts) if parts else ""
+            if youtube_parts:
+                summary_parts.append("YouTube: " + " | ".join(youtube_parts))
         
         # Build content gap hint
         content_gap_hint = self._generate_content_gap_hint(
@@ -228,12 +246,8 @@ class CourseAnalyzer:
             job_market_data
         )
         
-        # Build summary
-        summary = (
-            f"Main topic: {keywords.topic}. "
-            f"Subtopics: {', '.join(keywords.subtopics)}. "
-            f"trend_summary:{trend_summary}, job_summary:{job_summary}, youtube_summary:{youtube_summary}"
-        )
+        # Combine summary parts
+        summary = ". ".join(summary_parts) + "."
         
         # Format scores and get explanations
         formatter = ResponseFormatter()
@@ -268,8 +282,9 @@ class CourseAnalyzer:
         # Get score context based on course type
         score_context = ScoreCalculator.get_score_context(keywords.course_type)
         
-        # Add score context to summary
-        summary = f"{summary}\nScore Context: {score_context}"
+        # Add score context to summary (integrated naturally)
+        if score_context:
+            summary += f" {score_context}"
         
         return CourseIdeaResponse(
             idea=user_input,
