@@ -108,8 +108,8 @@ class YouTubeAPIScraper(CourseMarketplaceScraper):
 
     def _get_api_key_from_env(self) -> Optional[str]:
         """Try to get YouTube API key from environment."""
-        import os
-        return os.getenv("YOUTUBE_API_KEY")
+        from ...core.config import settings
+        return settings.YOUTUBE_API_KEY
 
     async def fetch_courses(self, topic: str) -> List[CourseInfo]:
         """
@@ -131,7 +131,7 @@ class YouTubeAPIScraper(CourseMarketplaceScraper):
                     "part": "snippet",
                     "q": search_query,
                     "type": "video",
-                    "videoDuration": "medium,long",  # Filter for substantial content
+                    "videoDuration": "long",  # Filter for substantial content (long videos are typically courses)
                     "videoDefinition": "any",
                     "maxResults": self.max_results,
                     "key": self.api_key,
@@ -161,7 +161,13 @@ class YouTubeAPIScraper(CourseMarketplaceScraper):
                 return courses
                 
         except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error fetching YouTube data: {e.response.status_code}")
+            error_detail = ""
+            try:
+                error_data = e.response.json()
+                error_detail = f" - {error_data.get('error', {}).get('message', 'Unknown error')}"
+            except:
+                error_detail = f" - {e.response.text[:200] if hasattr(e.response, 'text') else 'Unable to parse error'}"
+            logger.warning(f"HTTP error fetching YouTube data: {e.response.status_code}{error_detail}")
             return []
         except Exception as e:
             logger.warning(f"Error fetching YouTube data: {str(e)}")
@@ -190,13 +196,16 @@ class YouTubeAPIScraper(CourseMarketplaceScraper):
                 # Extract view count as a proxy for "student count"
                 view_count = int(statistics.get("viewCount", 0))
                 
-                # Calculate a simple rating from likes/views ratio (scaled to 5.0)
+                # Calculate a realistic rating from likes/views ratio (scaled to 5.0)
+                # Typical YouTube like ratios: 0.3-2% (good videos), 2-5% (excellent)
+                # Scale: 0.3% = 3.0 stars, 0.5% = 3.5 stars, 1% = 4.0 stars, 2%+ = 5.0 stars
                 likes = int(statistics.get("likeCount", 0))
                 rating = None
                 if view_count > 0 and likes > 0:
                     like_ratio = likes / view_count
-                    # Scale to 0-5 range (typically 1-10% like ratio is good)
-                    rating = min(5.0, max(1.0, like_ratio * 100 * 0.5))
+                    # Use logarithmic scale for more realistic ratings
+                    # Formula: 3.0 + (like_ratio * 1000) with caps at 3.0-5.0
+                    rating = min(5.0, max(3.0, 3.0 + (like_ratio * 1000)))
                 
                 course = CourseInfo(
                     title=snippet.get("title", "Unknown"),
@@ -213,6 +222,15 @@ class YouTubeAPIScraper(CourseMarketplaceScraper):
             
             return courses
             
+        except httpx.HTTPStatusError as e:
+            error_detail = ""
+            try:
+                error_data = e.response.json()
+                error_detail = f" - {error_data.get('error', {}).get('message', 'Unknown error')}"
+            except:
+                error_detail = f" - {e.response.text[:200] if hasattr(e.response, 'text') else 'Unable to parse error'}"
+            logger.warning(f"Error fetching video details: HTTP {e.response.status_code}{error_detail}")
+            return []
         except Exception as e:
             logger.warning(f"Error fetching video details: {str(e)}")
             return []
@@ -547,14 +565,14 @@ class MarketCompetitionService:
 # 4. Create credentials (API key)
 # 5. Set YOUTUBE_API_KEY environment variable
 #
-import os
-
 def _create_default_scrapers() -> List[CourseMarketplaceScraper]:
     """Create default scrapers based on available API keys."""
+    from ...core.config import settings
+    
     scrapers: List[CourseMarketplaceScraper] = []
     
     # Try YouTube API if key is available
-    youtube_key = os.getenv("YOUTUBE_API_KEY")
+    youtube_key = settings.YOUTUBE_API_KEY
     if youtube_key:
         logger.info("YouTube API key found - using YouTube Data API for competition analysis")
         scrapers.append(YouTubeAPIScraper(api_key=youtube_key))

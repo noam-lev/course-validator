@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     ADZUNA_API_KEY: Optional[str] = None
     JOB_SEARCH_COUNTRY: str = "us"  # us, gb, de, au, etc.
     MAX_JOBS_TO_ANALYZE: int = 100
+    
+    # YouTube API Settings
+    YOUTUBE_API_KEY: Optional[str] = None
 
 
     model_config = {

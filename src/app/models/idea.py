@@ -51,6 +51,15 @@ class JobMarketData(BaseModel):
     required_skills: List[str]
     growth_trend: str = Field(..., pattern="^(growing|stable|declining)$")
 
+class YouTubeAnalysis(BaseModel):
+    total_videos_found: int
+    top_videos: List[CourseInfo] = Field(default_factory=list)
+    avg_views: Optional[float] = None
+    avg_rating: Optional[float] = None
+    top_channels: List[str] = Field(default_factory=list)
+    total_views: int = 0
+    engagement_score: int = Field(default=0, ge=0, le=100)
+
 class ScoreExplanation(BaseModel):
     demand: str
     competition: str
@@ -66,6 +75,7 @@ class CourseIdeaResponse(BaseModel):
     content_gap_hint: Optional[str] = None
     summary: str
     job_market: Optional[JobMarketData] = None
+    youtube_analysis: Optional[YouTubeAnalysis] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:

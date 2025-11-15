@@ -4,6 +4,7 @@ from ..models.idea import (
     KeywordAnalysis, 
     TrendsAnalysis, 
     JobMarketData,
+    YouTubeAnalysis,
     ScoreExplanation,
     CourseType
 )
@@ -12,6 +13,7 @@ from .score_calculator import ScoreCalculator
 from .keyword_extraction import KeywordExtractionService
 from .google_trends import GoogleTrendsService
 from .job_market import JobMarketService
+from .youtube_service import YouTubeService
 from .market_competition import market_competition_service
 from typing import Optional
 import logging
@@ -29,11 +31,13 @@ class CourseAnalyzer:
         self,
         keyword_service: KeywordExtractionService,
         trends_service: GoogleTrendsService,
-        job_market_service: JobMarketService
+        job_market_service: JobMarketService,
+        youtube_service: YouTubeService
     ):
         self.keyword_service = keyword_service
         self.trends_service = trends_service
         self.job_market_service = job_market_service
+        self.youtube_service = youtube_service
     
     async def analyze_course_idea(self, request: CourseIdeaRequest) -> CourseIdeaResponse:
         """
@@ -54,10 +58,13 @@ class CourseAnalyzer:
         # Step 3: Analyze job market demand
         job_market_data = await self._analyze_job_market(keywords)
         
-        # Step 4: Analyze competition (placeholder for future marketplace analysis)
+        # Step 4: Analyze YouTube content
+        youtube_analysis = await self._analyze_youtube(keywords)
+        
+        # Step 5: Analyze competition (placeholder for future marketplace analysis)
         competition_score = await self._analyze_competition(keywords)
         
-        # Step 5: Calculate overall viability score
+        # Step 6: Calculate overall viability score
         good_idea_score = self._calculate_viability_score(
             keywords,
             trends_analysis.demand_score,
@@ -65,12 +72,13 @@ class CourseAnalyzer:
             job_market_data
         )
         
-        # Step 6: Generate insights and build response
+        # Step 7: Generate insights and build response
         return self._build_response(
             user_input=request.user_input,
             keywords=keywords,
             trends_analysis=trends_analysis,
             job_market_data=job_market_data,
+            youtube_analysis=youtube_analysis,
             competition_score=competition_score,
             good_idea_score=good_idea_score
         )
@@ -89,6 +97,11 @@ class CourseAnalyzer:
         """Analyze job market demand for extracted keywords."""
         logger.info(f"Analyzing job market for topic: {keywords.topic}")
         return await self.job_market_service.analyze_job_market(keywords)
+    
+    async def _analyze_youtube(self, keywords: KeywordAnalysis) -> Optional[YouTubeAnalysis]:
+        """Analyze YouTube content for extracted keywords."""
+        logger.info(f"Analyzing YouTube content for topic: {keywords.topic}")
+        return await self.youtube_service.analyze_youtube(keywords)
     
     async def _analyze_competition(self, keywords: KeywordAnalysis) -> int:
         """
@@ -152,6 +165,7 @@ class CourseAnalyzer:
         keywords: KeywordAnalysis,
         trends_analysis: TrendsAnalysis,
         job_market_data: Optional[JobMarketData],
+        youtube_analysis: Optional[YouTubeAnalysis],
         competition_score: int,
         good_idea_score: int
     ) -> CourseIdeaResponse:
@@ -175,6 +189,37 @@ class CourseAnalyzer:
             if job_market_data.avg_salary:
                 job_summary += f", avg salary: ${job_market_data.avg_salary:,.0f}"
         
+        # Build YouTube summary with actionable insights
+        youtube_summary = ""
+        if youtube_analysis and youtube_analysis.total_videos_found > 0:
+            parts = []
+            
+            # Engagement level indicator
+            if youtube_analysis.engagement_score >= 80:
+                parts.append("Very high engagement")
+            elif youtube_analysis.engagement_score >= 60:
+                parts.append("High engagement")
+            elif youtube_analysis.engagement_score >= 40:
+                parts.append("Moderate engagement")
+            else:
+                parts.append("Low engagement")
+            
+            # Average views with context
+            if youtube_analysis.avg_views:
+                if youtube_analysis.avg_views >= 1_000_000:
+                    parts.append(f"{youtube_analysis.avg_views:,.0f} avg views (very popular)")
+                elif youtube_analysis.avg_views >= 100_000:
+                    parts.append(f"{youtube_analysis.avg_views:,.0f} avg views")
+                else:
+                    parts.append(f"{youtube_analysis.avg_views:,.0f} avg views")
+            
+            # Top channels (competition indicator)
+            if youtube_analysis.top_channels:
+                channel_list = ', '.join(youtube_analysis.top_channels[:3])
+                parts.append(f"top creators: {channel_list}")
+            
+            youtube_summary = " YouTube: " + ", ".join(parts) if parts else ""
+        
         # Build content gap hint
         content_gap_hint = self._generate_content_gap_hint(
             keywords,
@@ -187,7 +232,7 @@ class CourseAnalyzer:
         summary = (
             f"Main topic: {keywords.topic}. "
             f"Subtopics: {', '.join(keywords.subtopics)}. "
-            f"trend_summary:{trend_summary}, job_summary:{job_summary}"
+            f"trend_summary:{trend_summary}, job_summary:{job_summary}, youtube_summary:{youtube_summary}"
         )
         
         # Format scores and get explanations
@@ -235,7 +280,8 @@ class CourseAnalyzer:
             score_explanations=score_explanations,
             content_gap_hint=formatted_content_gap,
             summary=summary,
-            job_market=job_market_data
+            job_market=job_market_data,
+            youtube_analysis=youtube_analysis
         )
     
     def _generate_content_gap_hint(
@@ -285,10 +331,12 @@ def get_course_analyzer() -> CourseAnalyzer:
     from .keyword_extraction import keyword_service
     from .google_trends import trends_service
     from .job_market import job_market_service
+    from .youtube_service import youtube_service
     
     return CourseAnalyzer(
         keyword_service=keyword_service,
         trends_service=trends_service,
-        job_market_service=job_market_service
+        job_market_service=job_market_service,
+        youtube_service=youtube_service
     )
 

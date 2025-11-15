@@ -7,6 +7,7 @@ from .idea import (
     CourseInfo,
     MarketplaceAnalysis,
     JobMarketData,
+    YouTubeAnalysis,
 )
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "CourseInfo",
     "MarketplaceAnalysis",
     "JobMarketData",
+    "YouTubeAnalysis",
 ]
 
