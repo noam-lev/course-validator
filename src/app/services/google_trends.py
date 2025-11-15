@@ -98,7 +98,7 @@ class GoogleTrendsService:
                 interest_df = self.pytrends.interest_over_time()
                 
                 if interest_df.empty or keyword not in interest_df.columns:
-                    logger.warning(f"No data available for keyword: {keyword}")
+                    logger.warning(f"No data in google trends available for keyword: {keyword}")
                     return None
                 
                 # Calculate trend metrics

@@ -33,31 +33,50 @@ class KeywordExtractionService:
         }}
         
         Course Types Explained:
-        1. life_skills: Personal finance, investing, health, relationships, self-improvement
-           - Focus on practical life applications
-           - Skills everyone needs regardless of profession
-           - Often involves money, health, or personal growth
+        
+        1. life_skills: Practical skills for daily life and personal well-being
+           - Personal finance, investing for beginners, budgeting, saving
+           - Health, fitness, nutrition, mental wellness
+           - Relationships, communication, parenting
+           - Self-improvement, time management, productivity
+           - Key indicator: "Is this something EVERYONE needs in their personal life?"
+           - Examples: "Investing for beginners", "How to budget", "Meal planning", "Stress management"
+           - NOT professional if: It's about managing YOUR OWN money/health/life (not doing it as a job)
            
-        2. professional: Career advancement, job skills, certifications
-           - Direct application in workplace
-           - Clear career path connection
-           - Industry-specific skills
+        2. professional: Skills for career advancement and workplace application
+           - Job-specific skills, certifications, technical training
+           - Industry tools, software, methodologies
+           - Management, leadership, business strategy (for work)
+           - Key indicator: "Is this primarily for advancing a CAREER or doing a JOB?"
+           - Examples: "Python for data science", "Project management certification", "Sales training"
+           - Professional if: It's about doing this AS A JOB or FOR WORK
            
-        3. personal: Hobby, creative pursuits, personal interests
-           - Pure enjoyment or creativity
-           - No specific practical application needed
-           - Personal fulfillment focused
+        3. personal: Hobbies, creative pursuits, pure enjoyment
+           - Arts, crafts, music, games
+           - Pure entertainment or creative expression
+           - No practical necessity
+           - Key indicator: "Is this purely for fun/creativity with no practical need?"
+           - Examples: "Learn to paint", "Guitar for beginners", "Chess strategies"
            
-        4. educational: Academic subjects, teaching methods, exam prep
-           - Traditional academic topics
-           - Formal education focus
-           - Structured learning paths
+        4. educational: Academic subjects, teaching, formal learning
+           - School subjects, exam preparation
+           - Teaching methods, curriculum design
+           - Formal education pathways
+           - Key indicator: "Is this about academic learning or teaching others?"
+           - Examples: "SAT prep", "Teaching math to kids", "History course"
+        
+        CRITICAL DISTINCTION - life_skills vs professional:
+        - "Investing for beginners" → life_skills (managing YOUR money)
+        - "Financial advisor certification" → professional (doing it AS A JOB)
+        - "Personal finance basics" → life_skills (everyone needs this)
+        - "Corporate finance analysis" → professional (workplace skill)
+        - "How to budget" → life_skills (personal life skill)
+        - "Budget management for managers" → professional (workplace skill)
         
         Choose the most appropriate type based on:
-        - Primary motivation (job vs personal growth vs hobby)
-        - Target audience (professionals vs general public)
-        - Expected outcomes (career advancement vs personal enrichment)
-        - Application (workplace vs daily life vs leisure)
+        - PRIMARY USE CASE: Personal life vs workplace vs hobby vs academic
+        - TARGET AUDIENCE: General public vs professionals vs students
+        - MAIN GOAL: Personal enrichment vs career advancement vs enjoyment vs education
         
         Guidelines and Examples:
         
